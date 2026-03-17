@@ -1,0 +1,9 @@
+{
+    "machines": {
+        "MX7 ULTRA": "C:\\Users\\User\\Documents\\testy\\Maszyna1",
+        "FX5 LINEAR": "C:\\Users\\User\\Documents\\testy\\Maszyna2",
+        "MX5": "C:\\Users\\User\\Documents\\testy\\Maszyna3",
+        "MX7": "C:\\Users\\User\\Documents\\testy\\Maszyna4"
+    },
+    "destination": "C:\\Users\\User\\Documents\\testy\\docelowy"
+}

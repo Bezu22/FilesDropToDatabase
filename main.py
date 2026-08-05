@@ -7,6 +7,7 @@ import tkinter.messagebox as messagebox
 import customtkinter as ctk
 
 from config import MACHINES, MAIN_DB_PATH
+from logger import app_logger  # <--- IMPORT NASZEGO LOGGERA
 from panels.bottom_panel import BottomPanel
 from panels.database_panel import DatabasePanel
 from panels.machine_panel import MachinePanel
@@ -39,13 +40,12 @@ class NetworkFileManager(ctk.CTk):
         self.right_panel = DatabasePanel(self, MAIN_DB_PATH)
         self.right_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        # Rejestracja lewego panelu z podpiętymi trzema callbackami
         self.left_panel = MachinePanel(
             self,
             MACHINES,
             on_search_in_db_callback=self.search_file_in_database,
             on_archive_callback=self.archive_file_to_database,
-            on_delete_callback=self.delete_item_from_machine,  # Dodany callback
+            on_delete_callback=self.delete_item_from_machine,
         )
         self.left_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
@@ -53,6 +53,9 @@ class NetworkFileManager(ctk.CTk):
         self.bottom_panel.grid(
             row=1, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew"
         )
+        
+        # Logowanie startu aplikacji
+        app_logger.info("Uruchomiono aplikację Network File Manager.")
 
     def search_file_in_database(self, file_name):
         self.right_panel.set_search_query(file_name)
@@ -109,12 +112,21 @@ class NetworkFileManager(ctk.CTk):
 
             os.remove(file_path)
 
+            # LOGOWANIE SUKCESU ARCHIWIZACJI
+            app_logger.info(
+                f"ZARCHIWIZOWANO: Plik '{file_path.name}' z maszyny '{machine_name}' do katalogu '{destination_dir.name}'."
+            )
+
             self.after(
                 0, lambda: self._on_archive_success(file_path, destination_dir)
             )
 
         except Exception as e:
             error_msg = str(e)
+            # LOGOWANIE BŁĘDU ARCHIWIZACJI
+            app_logger.error(
+                f"BŁĄD ARCHIWIZACJI: Nie udało się zarchiwizować '{file_path}'. Powód: {error_msg}"
+            )
             self.after(0, lambda: self._on_archive_error(error_msg))
 
     def _on_archive_success(self, file_path, destination_dir):
@@ -139,7 +151,6 @@ class NetworkFileManager(ctk.CTk):
         """Obsługuje bezpieczne usuwanie plików i katalogów z maszyny z potwierdzeniem."""
         try:
             if item_type == "file":
-                # --- USUWANIE PLIKU ---
                 confirm = messagebox.askyesno(
                     "Potwierdzenie usunięcia pliku",
                     f"Czy na pewno chcesz bezpowrotnie usunąć plik:\n\n{item_path.name}?",
@@ -147,11 +158,11 @@ class NetworkFileManager(ctk.CTk):
                 )
                 if confirm:
                     os.remove(item_path)
+                    # LOGOWANIE USUNIĘCIA PLIKU
+                    app_logger.info(f"USUNIĘTO PLIK: '{item_path}'")
                     self._post_delete_cleanup(f"Usunięto plik: {item_path.name}")
 
             elif item_type == "dir":
-                # --- USUWANIE KATALOGU ---
-                # Sprawdzamy czy katalog jest pusty
                 contents = list(item_path.iterdir())
                 is_empty = len(contents) == 0
 
@@ -163,6 +174,8 @@ class NetworkFileManager(ctk.CTk):
                     )
                     if confirm:
                         item_path.rmdir()
+                        # LOGOWANIE USUNIĘCIA PUSTEGO FOLDERU
+                        app_logger.info(f"USUNIĘTO PUSTY FOLDER: '{item_path}'")
                         self._post_delete_cleanup(f"Usunięto pusty folder: {item_path.name}")
                 else:
                     confirm = messagebox.askyesno(
@@ -173,16 +186,19 @@ class NetworkFileManager(ctk.CTk):
                     )
                     if confirm:
                         shutil.rmtree(item_path)
+                        # LOGOWANIE USUNIĘCIA FOLDERU Z ZAWARTOŚCIĄ
+                        app_logger.info(f"USUNIĘTO FOLDER Z ZAWARTOŚCIĄ ({len(contents)} elem.): '{item_path}'")
                         self._post_delete_cleanup(f"Usunięto folder wraz z zawartością: {item_path.name}")
 
         except Exception as e:
+            # LOGOWANIE BŁĘDU USUWANIA
+            app_logger.error(f"BŁĄD USUWANIA: Nie udało się usunąć '{item_path}'. Powód: {str(e)}")
             messagebox.showerror(
                 "Błąd usuwania",
                 f"Nie udało się usunąć wskazanego elementu:\n{str(e)}",
             )
 
     def _post_delete_cleanup(self, status_msg):
-        """Pomocnicza metoda odświeżająca widok i status po usunięciu elementu."""
         self.left_panel.refresh_view()
         self.left_panel._clear_selection()
         self.left_panel.status_label.configure(

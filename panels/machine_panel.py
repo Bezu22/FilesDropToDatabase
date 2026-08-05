@@ -13,6 +13,7 @@ class MachinePanel(BaseFilePanel):
         machines_dict,
         on_search_in_db_callback=None,
         on_archive_callback=None,
+        on_delete_callback=None,  # 1. Nowy callback do usuwania
     ):
         super().__init__(parent, title="LEWY PANEL")
         self.machines = machines_dict
@@ -21,6 +22,7 @@ class MachinePanel(BaseFilePanel):
         # Callbacks do komunikacji z głównym oknem
         self.on_search_in_db_callback = on_search_in_db_callback
         self.on_archive_callback = on_archive_callback
+        self.on_delete_callback = on_delete_callback  # Przypisanie callbacku
 
         self.root_path = Path(self.machines[self.selected_machine])
         self.current_path = self.root_path
@@ -58,7 +60,12 @@ class MachinePanel(BaseFilePanel):
             command=self._archive_file,
         )
 
-        self.btn_act3.configure(text="Akcja M3")
+        # Przycisk 3: "Usuń" (nowa funkcjonalność)
+        self.btn_act3.configure(
+            text="Usuń",
+            state="disabled",
+            command=self._delete_item,
+        )
 
     def _select_machine(self, machine_name):
         self.selected_machine = machine_name
@@ -68,10 +75,13 @@ class MachinePanel(BaseFilePanel):
         self.refresh_view()
 
     def _on_single_click(self, path, item_type, button_widget):
-        """Sterowanie aktywacją przycisków w zależności od wybranego pliku."""
+        """Sterowanie aktywacją przycisków w zależności od wybranego elementu."""
         super()._on_single_click(path, item_type, button_widget)
 
-        # Aktywujemy przyciski tylko dla plików z rozszerzeniem .tom
+        # Przycisk "Usuń" (btn_act3) jest aktywny dla KAŻDEGO zaznaczonego elementu (plik/katalog)
+        self.btn_act3.configure(state="normal")
+
+        # Aktywujemy przyciski Znajdź i Archiwizuj tylko dla plików z rozszerzeniem .tom
         if item_type == "file" and path.suffix.lower() == ".tom":
             self.btn_act1.configure(state="normal")
             self.btn_act2.configure(state="normal")
@@ -80,11 +90,12 @@ class MachinePanel(BaseFilePanel):
             self.btn_act2.configure(state="disabled")
 
     def _clear_selection(self):
-        """Po czyszczeniu zaznaczenia blokujemy przyciski."""
+        """Po czyszczeniu zaznaczenia blokujemy wszystkie przyciski akcji."""
         super()._clear_selection()
         if hasattr(self, "btn_act1"):
             self.btn_act1.configure(state="disabled")
             self.btn_act2.configure(state="disabled")
+            self.btn_act3.configure(state="disabled")  # Blokada przycisku Usuń
 
     def _find_in_database(self):
         if self.selected_item_path and self.selected_item_type == "file":
@@ -100,6 +111,14 @@ class MachinePanel(BaseFilePanel):
                     file_path=self.selected_item_path,
                     machine_name=self.selected_machine,
                 )
+
+    def _delete_item(self):
+        """Wywołuje operację usuwania zaznaczonego pliku lub folderu."""
+        if self.selected_item_path and self.on_delete_callback:
+            self.on_delete_callback(
+                item_path=self.selected_item_path,
+                item_type=self.selected_item_type,
+            )
 
     def refresh_view(self):
         display_path = self._get_display_path(self.selected_machine)

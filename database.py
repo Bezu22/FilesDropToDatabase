@@ -1,158 +1,156 @@
 import os
 import sqlite3
+from pathlib import Path
 
 
 class DatabaseManager:
+    """Zarządza lokalną bazą SQLite służącą do szybkiego indeksowania i wyszukiwania folderów/plików."""
 
-    def __init__(self, db_file="baza_zlecen.db"):
-        """Inicjalizacja bazy danych SQLite."""
-        self.db_file = db_file
-        self.init_db()
+    def __init__(self, db_path="file_index.db"):
+        self.db_path = db_path
+        self._init_db()
 
-    def get_connection(self):
-        """Tworzy połączenie z bazą SQLite."""
-        return sqlite3.connect(self.db_file)
-
-    def init_db(self):
-        """Tworzy tabelę dla folderów oraz nakłada indeksy."""
-        with self.get_connection() as conn:
+    def _init_db(self):
+        """Inicjalizuje strukturę tabeli oraz dba o obecność kolumny mtime."""
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
+                CREATE TABLE IF NOT EXISTS files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    folder_name TEXT NOT NULL,
-                    folder_path TEXT NOT NULL UNIQUE,
-                    parent_path TEXT NOT NULL,
-                    tom_files TEXT DEFAULT ''
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    is_dir INTEGER NOT NULL,
+                    parent_path TEXT NOT NULL
                 )
             """)
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_folder_name ON"
-                " orders(folder_name)"
-            )
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_parent_path ON"
-                " orders(parent_path)"
-            )
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_tom_files ON orders(tom_files)"
-            )
+
+            cursor.execute("PRAGMA table_info(files)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            if "mtime" not in columns:
+                cursor.execute(
+                    "ALTER TABLE files ADD COLUMN mtime REAL DEFAULT 0"
+                )
+
             conn.commit()
 
     def index_directory(self, root_path):
-        """Skanuje całe poddrzewo folderów od root_path i zapisuje w bazie danych."""
-        root_str = str(root_path)
-        if not os.path.exists(root_str):
-            return False, "Ścieżka bazowa nie istnieje."
-
-        orders_dict = {}
-
-        try:
-            for root, dirs, files in os.walk(root_str):
-                parent_path = os.path.dirname(root)
-                folder_name = os.path.basename(root)
-
-                if root not in orders_dict:
-                    orders_dict[root] = {
-                        "name": folder_name,
-                        "parent": parent_path,
-                        "tom_files": [],
-                    }
-
-                for f in files:
-                    if f.lower().endswith(".tom"):
-                        orders_dict[root]["tom_files"].append(f)
-
-        except Exception as e:
-            return False, f"Błąd skanowania: {e}"
+        """Skanuje katalog i zapisuje ścieżki z czasem modyfikacji."""
+        root_path = Path(root_path)
+        if not root_path.exists():
+            return False, "Ścieżka nie istnieje"
 
         records = []
-        for path_str, folder_data in orders_dict.items():
-            tom_files_str = ", ".join(folder_data["tom_files"])
-            records.append(
-                (
-                    folder_data["name"],
-                    path_str,
-                    folder_data["parent"],
-                    tom_files_str,
-                )
-            )
+        for dirpath, dirnames, filenames in os.walk(root_path):
+            current_dir = Path(dirpath)
 
-        with self.get_connection() as conn:
+            for d in dirnames:
+                p = current_dir / d
+                try:
+                    mtime = p.stat().st_mtime
+                except Exception:
+                    mtime = 0
+                records.append((d, str(p), 1, mtime, str(current_dir)))
+
+            for f in filenames:
+                p = current_dir / f
+                try:
+                    mtime = p.stat().st_mtime
+                except Exception:
+                    mtime = 0
+                records.append((f, str(p), 0, mtime, str(current_dir)))
+
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM orders")
+            cursor.execute("DELETE FROM files")
             cursor.executemany(
                 """
-                INSERT OR REPLACE INTO orders (folder_name, folder_path, parent_path, tom_files)
-                VALUES (?, ?, ?, ?)
+                INSERT OR REPLACE INTO files (name, path, is_dir, mtime, parent_path)
+                VALUES (?, ?, ?, ?, ?)
             """,
                 records,
             )
             conn.commit()
 
-        return True, f"Zaindeksowano {len(records)} elementów."
-
-    def get_children(self, parent_path):
-        """Pobiera foldery oraz pliki .tom znajdujące się w podanej ścieżce."""
-        results = []
-        parent_str = str(parent_path)
-
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-
-            # 1. Pobieramy podfoldery znajdujące się w obecnej ścieżce
-            cursor.execute(
-                """
-                SELECT folder_name, folder_path, tom_files FROM orders
-                WHERE parent_path = ?
-                ORDER BY folder_name ASC
-            """,
-                (parent_str,),
-            )
-            subfolders = cursor.fetchall()
-            for name, path_str, tom_str in subfolders:
-                results.append(("dir", name, path_str, tom_str))
-
-            # 2. Sprawdzamy, czy sam obecny folder zawiera pliki .tom
-            cursor.execute(
-                """
-                SELECT tom_files FROM orders
-                WHERE folder_path = ?
-            """,
-                (parent_str,),
-            )
-            current_folder_data = cursor.fetchone()
-
-            if current_folder_data and current_folder_data[0]:
-                tom_files_list = [
-                    f.strip()
-                    for f in current_folder_data[0].split(",")
-                    if f.strip()
-                ]
-                for file_name in tom_files_list:
-                    file_path = os.path.join(parent_str, file_name)
-                    results.append(("file", file_name, file_path, ""))
-
-        return results
+        return True, "Zaindeksowano pomyślnie"
 
     def search_orders(self, query, limit=100):
-        """Szybkie szukanie folderów z plikami po słowie kluczowym."""
-        with self.get_connection() as conn:
+        """
+        Wyszukuje FOLDERY powiązane z szukaną frazą.
+        Sortujewyniki OD NAJNOWSZEGO (mtime DESC).
+        Zwraca krotkę: (typ, nazwa, ścieżka, mtime).
+        """
+        if not query:
+            return []
+
+        search_pattern = f"%{query.lower()}%"
+
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            wildcard = f"%{query}%"
+
+            # UNION łączy pasujące foldery oraz foldery rodzicielskie pasujących plików
+            # ORDER BY mtime DESC wymusza najnowsze elementy na samej górze
             cursor.execute(
                 """
-                SELECT folder_name, folder_path, tom_files FROM orders
-                WHERE folder_name LIKE ? OR tom_files LIKE ?
-                ORDER BY folder_name ASC
+                SELECT name, path, mtime FROM files 
+                WHERE is_dir = 1 AND LOWER(name) LIKE ?
+                
+                UNION
+                
+                SELECT f_parent.name, f_parent.path, f_parent.mtime 
+                FROM files f_child
+                JOIN files f_parent ON f_child.parent_path = f_parent.path
+                WHERE f_child.is_dir = 0 AND LOWER(f_child.name) LIKE ? AND f_parent.is_dir = 1
+                
+                ORDER BY mtime DESC
                 LIMIT ?
             """,
-                (wildcard, wildcard, limit),
+                (search_pattern, search_pattern, limit),
             )
-            raw_data = cursor.fetchall()
 
-            # Formatujemy wyniki jako typ 'dir'
-            return [
-                ("dir", name, path_str, tom_str)
-                for name, path_str, tom_str in raw_data
-            ]
+            rows = cursor.fetchall()
+
+        # Zwracamy zestaw danych rozszerzony o mtime: ("dir", nazwa, ścieżka, mtime)
+        return [("dir", row[0], row[1], row[2]) for row in rows]
+
+    def get_children(self, parent_path):
+        """Pobiera zawartość folderu wraz z czasem modyfikacji."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT is_dir, name, path, mtime FROM files 
+                WHERE parent_path = ?
+                ORDER BY is_dir DESC, name ASC
+            """,
+                (str(parent_path),),
+            )
+            rows = cursor.fetchall()
+
+        return [
+            ("dir" if row[0] == 1 else "file", row[1], row[2], row[3])
+            for row in rows
+        ]
+
+    def add_single_path(self, full_path, is_dir=False):
+        """Zapisuje pojedynczy plik/folder w bazie po archiwizacji."""
+        p = Path(full_path)
+        if not p.exists():
+            return
+        try:
+            mtime = p.stat().st_mtime
+        except Exception:
+            mtime = 0
+        parent = str(p.parent)
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO files (name, path, is_dir, mtime, parent_path)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (p.name, str(p), 1 if is_dir else 0, mtime, parent),
+            )
+            conn.commit()

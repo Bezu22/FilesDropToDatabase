@@ -6,7 +6,7 @@ from panels.click_handler import ClickHandler
 
 
 class BaseFilePanel(ctk.CTkFrame):
-    """Wspólna klasa bazowa interfejsu z zabezpieczeniem przed przypadkowym cofaniem (cooldown)."""
+    """Wspólna klasa bazowa interfejsu panelu plików z obsługą nawigacji i wyboru elementów."""
 
     def __init__(self, parent, title):
         super().__init__(parent)
@@ -105,12 +105,14 @@ class BaseFilePanel(ctk.CTkFrame):
 
     @staticmethod
     def natural_sort_key(s):
+        """Klucz sortowania naturalnego dla ciągów znaków (np. 'plik2' przed 'plik10')."""
         return [
             int(text) if text.isdigit() else text.lower()
             for text in re.split(r"(\d+)", str(s))
         ]
 
     def _get_display_path(self, prefix_name):
+        """Zwraca skróconą/względną ścieżkę do wyświetlenia w nagłówku."""
         try:
             if self.current_path and self.root_path:
                 rel = self.current_path.relative_to(self.root_path)
@@ -125,13 +127,13 @@ class BaseFilePanel(ctk.CTkFrame):
         self._is_navigating = False
 
     def _draw_items(self, items, is_search=False):
-        """Rysuje przyciski folderów i plików."""
+        """Rysuje przyciski folderów i plików w liście przewijanej."""
         for widget in self.items_list_frame.winfo_children():
             widget.destroy()
 
         self._clear_selection()
 
-        # Włączamy blokadę na krótki czas, aby uniknąć przypadkowego kliknięcia w nowo powstałe przyciski
+        # Włączamy blokadę na krótki czas, aby uniknąć przypadkowego kliknięcia w nowe elementy
         self._is_navigating = True
         self.after(250, self._unlock_navigation)
 
@@ -199,13 +201,23 @@ class BaseFilePanel(ctk.CTkFrame):
             btn.pack(fill="x", padx=2, pady=1)
 
     def _on_single_click(self, path, item_type, button_widget):
+        """Obsługuje pojedyncze kliknięcie: podświetla element i aktualizuje dolny pasek informacyjny."""
+        # 1. Resetowanie koloru tła poprzednio zaznaczonego przycisku
         if self.selected_button and self.selected_button.winfo_exists():
             self.selected_button.configure(fg_color="transparent")
 
+        # 2. Zapisanie nowej ścieżki i zmiana koloru tła na niebieski
         self.selected_item_path = path
         self.selected_item_type = item_type
         self.selected_button = button_widget
         self.selected_button.configure(fg_color="#1f538d")
+
+        # 3. Bezpieczne przekazanie ścieżki do dolnego panelu
+        app = self.winfo_toplevel()
+        bottom_panel = getattr(app, "bottom_panel", None)
+
+        if bottom_panel is not None:
+            bottom_panel.update_info(path)
 
     def _on_double_click(self, path, item_type):
         """Otwiera folder po podwójnym kliknięciu."""
@@ -215,13 +227,13 @@ class BaseFilePanel(ctk.CTkFrame):
             self.refresh_view()
 
     def _clear_selection(self):
+        """Resetuje aktualne zaznaczenie."""
         self.selected_item_path = None
         self.selected_item_type = None
         self.selected_button = None
 
     def _go_up(self):
         """Cofa się do folderu nadrzędnego (z blokadą czasową)."""
-        # Jeśli blokada jest aktywna, ignorujemy kliknięcie w przycisk [..]
         if self._is_navigating:
             return
 

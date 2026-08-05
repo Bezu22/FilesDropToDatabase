@@ -7,13 +7,20 @@ from panels.machine_scanner import MachineScanner
 
 class MachinePanel(BaseFilePanel):
 
-    def __init__(self, parent, machines_dict, on_search_in_db_callback=None):
+    def __init__(
+        self,
+        parent,
+        machines_dict,
+        on_search_in_db_callback=None,
+        on_archive_callback=None,
+    ):
         super().__init__(parent, title="LEWY PANEL")
         self.machines = machines_dict
         self.selected_machine = list(self.machines.keys())[0]
 
-        # Callback do przekazania nazwy pliku do głównego okna aplikacji
+        # Callbacks do komunikacji z głównym oknem
         self.on_search_in_db_callback = on_search_in_db_callback
+        self.on_archive_callback = on_archive_callback
 
         self.root_path = Path(self.machines[self.selected_machine])
         self.current_path = self.root_path
@@ -37,14 +44,20 @@ class MachinePanel(BaseFilePanel):
             )
             btn.pack(side="left", padx=2, pady=2)
 
-        # 1. Konfiguracja pierwszego przycisku akcji: "Znajdź"
+        # Przycisk 1: "Znajdź"
         self.btn_act1.configure(
             text="Znajdź",
-            state="disabled",  # Domyślnie wyłączony
+            state="disabled",
             command=self._find_in_database,
         )
 
-        self.btn_act2.configure(text="Akcja M2")
+        # Przycisk 2: "Archiwizuj"
+        self.btn_act2.configure(
+            text="Archiwizuj",
+            state="disabled",
+            command=self._archive_file,
+        )
+
         self.btn_act3.configure(text="Akcja M3")
 
     def _select_machine(self, machine_name):
@@ -55,38 +68,38 @@ class MachinePanel(BaseFilePanel):
         self.refresh_view()
 
     def _on_single_click(self, path, item_type, button_widget):
-        """
-        Nadpisujemy metodę kliknięcia z klasy bazowej,
-        aby kontrolować aktywację przycisku 'Znajdź'.
-        """
-        # Wywołujemy bazowe zaznaczanie (kolorowanie przycisku)
+        """Sterowanie aktywacją przycisków w zależności od wybranego pliku."""
         super()._on_single_click(path, item_type, button_widget)
 
-        # Jeśli zaznaczono plik, aktywujemy przycisk 'Znajdź'
-        if item_type == "file":
+        # Aktywujemy przyciski tylko dla plików z rozszerzeniem .tom
+        if item_type == "file" and path.suffix.lower() == ".tom":
             self.btn_act1.configure(state="normal")
+            self.btn_act2.configure(state="normal")
         else:
             self.btn_act1.configure(state="disabled")
+            self.btn_act2.configure(state="disabled")
 
     def _clear_selection(self):
-        """Po czyszczeniu zaznaczenia wyłączamy przycisk 'Znajdź'."""
+        """Po czyszczeniu zaznaczenia blokujemy przyciski."""
         super()._clear_selection()
         if hasattr(self, "btn_act1"):
             self.btn_act1.configure(state="disabled")
+            self.btn_act2.configure(state="disabled")
 
     def _find_in_database(self):
-        """Wywoływane po kliknięciu przycisku 'Znajdź'."""
         if self.selected_item_path and self.selected_item_type == "file":
-            # Pobieramy samą nazwę pliku (np. "rama_123.tom" lub "rama_123")
             file_name = self.selected_item_path.name
-
-            print(
-                f"[MASZYNA] Szukam w bazie pliku o nazwie: {file_name}"
-            )
-
-            # Jeśli przkazano funkcję łączącą w main.py, wywołujemy ją
             if self.on_search_in_db_callback:
                 self.on_search_in_db_callback(file_name)
+
+    def _archive_file(self):
+        """Wywołuje operację archiwizacji za pośrednictwem callbacku."""
+        if self.selected_item_path and self.selected_item_type == "file":
+            if self.on_archive_callback:
+                self.on_archive_callback(
+                    file_path=self.selected_item_path,
+                    machine_name=self.selected_machine,
+                )
 
     def refresh_view(self):
         display_path = self._get_display_path(self.selected_machine)

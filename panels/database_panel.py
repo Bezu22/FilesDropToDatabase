@@ -94,7 +94,7 @@ class DatabasePanel(BaseFilePanel):
 
     def refresh_view(self):
         """
-        Pobiera dane z bazy SQLite:
+        Pobiera dane z bazy SQLite i oczyszcza je ze zbędnych ciągów znaków:
         - Jeśli pole wyszukiwania zawiera tekst -> wyświetla wyniki wyszukiwania globalnego.
         - Jeśli pole jest puste -> wyświetla zawartość aktualnego folderu (self.current_path).
         """
@@ -108,9 +108,19 @@ class DatabasePanel(BaseFilePanel):
             # Pobranie dzieci (zawartości) dla wybranego folderu self.current_path
             raw_items = self.db.get_children(self.current_path)
 
+        # Oczyszczanie rekordu z dodatkowych informacji SQL
+        # Zapewnia czystą nazwę bez dopisków w nawiasach
+        cleaned_items = []
+        for item in raw_items:
+            item_type = item[0]
+            item_name = item[1]
+            path_str = item[2]
+            cleaned_items.append((item_type, item_name, path_str, ""))
+
+        # Sortowanie naturalne według czystej nazwy
         sorted_items = sorted(
-            raw_items, key=lambda x: self.natural_sort_key(x[1])
+            cleaned_items, key=lambda x: self.natural_sort_key(x[1])
         )
 
-        # Rysowanie listy elementów
+        # Rysowanie wyczyszczonej listy elementów
         self._draw_items(sorted_items, is_search=bool(query))

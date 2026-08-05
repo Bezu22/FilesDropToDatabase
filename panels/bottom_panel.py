@@ -4,52 +4,61 @@ import customtkinter as ctk
 
 
 class BottomPanel(ctk.CTkFrame):
-    """
-    Dolny panel informacyjny.
-    Wyświetla ścieżkę oraz datę ostatniej modyfikacji TYLKO dla zaznaczonego elementu.
+    """Panel dolny podzielony na dwie kolumny, wyświetlający daty modyfikacji
+
+    dla elementów zaznaczonych w lewym i prawym panelu.
     """
 
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
+    def __init__(self, parent):
+        super().__init__(parent, height=35)
+        self.pack_propagate(False)
 
-        # Etykieta tekstowa do wyświetlania informacji
-        self.info_label = ctk.CTkLabel(
+        # Siatka 1 wiersz, 2 kolumny o równej szerokości
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure((0, 1), weight=1)
+
+        # Lewa kolumna (Komputer Lokalny)
+        self.left_label = ctk.CTkLabel(
             self,
-            text="Wybierz plik lub folder, aby zobaczyć szczegóły...",
+            text="Lokalny: Brak zaznaczenia",
+            font=ctk.CTkFont(size=11),
             anchor="w",
-            font=("Arial", 12),
         )
-        self.info_label.pack(fill="x", padx=10, pady=5)
+        self.left_label.grid(row=0, column=0, padx=10, pady=2, sticky="ew")
 
-    def update_info(self, file_path):
-        """
-        Pobiera i wyświetla datę modyfikacji oraz rozmiar dla JEDNEGO zaznaczonego obiektu.
-        """
-        p = Path(file_path)
+        # Prawa kolumna (Baza Główna)
+        self.right_label = ctk.CTkLabel(
+            self,
+            text="Baza: Brak zaznaczenia",
+            font=ctk.CTkFont(size=11),
+            anchor="w",
+        )
+        self.right_label.grid(row=0, column=1, padx=10, pady=2, sticky="ew")
 
-        # Jeśli ścieżka nie istnieje na dysku (np. błąd w bazie)
-        if not p.exists():
-            self.info_label.configure(
-                text=f"Wybrano: {p.name} (Brak pliku na dysku)"
-            )
-            return
+    def _format_date(self, path):
+        """Format pomocniczy do odczytu daty pliku/folderu."""
+        if not path:
+            return "Brak zaznaczenia"
+
+        target_path = Path(path)
+        if not target_path.exists():
+            return f"{target_path.name} | [Brak pliku]"
 
         try:
-            # Odczytujemy czas ostatniej modyfikacji z systemu plików
-            mtime = p.stat().st_mtime
-            date_formatted = datetime.fromtimestamp(mtime).strftime(
-                "%d.%m.%Y %H:%M:%S"
+            mtime = target_path.stat().st_mtime
+            date_str = datetime.fromtimestamp(mtime).strftime(
+                "%Y-%m-%d %H:%M:%S"
             )
+            return f"{target_path.name} | Data: {date_str}"
+        except Exception:
+            return f"{target_path.name} | Błąd daty"
 
-            if p.is_dir():
-                self.info_label.configure(
-                    text=f"📁 Zaznaczony folder: {p.name}  |  Data modyfikacji: {date_formatted}"
-                )
-            else:
-                # Rozmiar pliku w KB
-                size_kb = round(p.stat().st_size / 1024, 2)
-                self.info_label.configure(
-                    text=f"📄 Zaznaczony plik: {p.name}  |  Rozmiar: {size_kb} KB  |  Data modyfikacji: {date_formatted}"
-                )
-        except Exception as e:
-            self.info_label.configure(text=f"Wybrano: {p.name}")
+    def update_left_info(self, path):
+        """Aktualizuje tekst w lewej kolumnie (zaznaczenie z lewego panelu)."""
+        text_info = self._format_date(path)
+        self.left_label.configure(text=f"Lokalnie: {text_info}")
+
+    def update_right_info(self, path):
+        """Aktualizuje tekst w prawej kolumnie (zaznaczenie z prawego panelu)."""
+        text_info = self._format_date(path)
+        self.right_label.configure(text=f"Baza: {text_info}")

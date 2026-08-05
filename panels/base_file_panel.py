@@ -201,23 +201,27 @@ class BaseFilePanel(ctk.CTkFrame):
             btn.pack(fill="x", padx=2, pady=1)
 
     def _on_single_click(self, path, item_type, button_widget):
-        """Obsługuje pojedyncze kliknięcie: podświetla element i aktualizuje dolny pasek informacyjny."""
-        # 1. Resetowanie koloru tła poprzednio zaznaczonego przycisku
+        """Obsługuje kliknięcie i aktualizuje odpowiednią kolumnę dolnego panelu."""
         if self.selected_button and self.selected_button.winfo_exists():
             self.selected_button.configure(fg_color="transparent")
 
-        # 2. Zapisanie nowej ścieżki i zmiana koloru tła na niebieski
         self.selected_item_path = path
         self.selected_item_type = item_type
         self.selected_button = button_widget
         self.selected_button.configure(fg_color="#1f538d")
 
-        # 3. Bezpieczne przekazanie ścieżki do dolnego panelu
+        # Bezpieczna aktualizacja właściwej kolumny dolnego panelu
         app = self.winfo_toplevel()
         bottom_panel = getattr(app, "bottom_panel", None)
 
         if bottom_panel is not None:
-            bottom_panel.update_info(path)
+            # Sprawdzamy, czy ten panel to DatabasePanel (prawy), czy MachinePanel (lewy)
+            from panels.database_panel import DatabasePanel
+
+            if isinstance(self, DatabasePanel):
+                bottom_panel.update_right_info(path)
+            else:
+                bottom_panel.update_left_info(path)
 
     def _on_double_click(self, path, item_type):
         """Otwiera folder po podwójnym kliknięciu."""

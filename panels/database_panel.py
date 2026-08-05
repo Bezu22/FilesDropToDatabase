@@ -12,7 +12,6 @@ class DatabasePanel(BaseFilePanel):
     """Panel prawy: Zarządza widokiem bazy głównej i szybkim wyszukiwaniem z SQLite."""
 
     def __init__(self, parent, root_db_path):
-        # Tytuł 'BAZA GŁÓWNA' przekazujemy do klasy bazowej BaseFilePanel
         super().__init__(parent, title="BAZA GŁÓWNA")
 
         self.root_path = Path(root_db_path)
@@ -53,8 +52,14 @@ class DatabasePanel(BaseFilePanel):
         self.btn_act2.configure(text="Akcja B2")
         self.btn_act3.configure(text="Akcja B3")
 
+    def set_search_query(self, query_text):
+        """Wpisuje podany tekst do pola wyszukiwarki i odświeża listę wyników."""
+        self.search_entry.delete(0, "end")
+        self.search_entry.insert(0, query_text)
+        self.refresh_view()
+
     def _on_search_key_pressed(self, event):
-        """Czeka 300ms po wpisaniu znaku przed przeszukaniem bazy (Debouncing)."""
+        """Czeka 300ms po wpisaniu znaku przed przeszukaniem bazy."""
         if self._search_timer is not None:
             self.after_cancel(self._search_timer)
         self._search_timer = self.after(300, self.refresh_view)
@@ -88,20 +93,24 @@ class DatabasePanel(BaseFilePanel):
         threading.Thread(target=worker, daemon=True).start()
 
     def refresh_view(self):
-        """Metoda nadpisana z BaseFilePanel: Pobiera dane z bazy SQLite."""
+        """
+        Pobiera dane z bazy SQLite:
+        - Jeśli pole wyszukiwania zawiera tekst -> wyświetla wyniki wyszukiwania globalnego.
+        - Jeśli pole jest puste -> wyświetla zawartość aktualnego folderu (self.current_path).
+        """
         query = self.search_entry.get().lower().strip()
         self.path_label.configure(text=self._get_display_path("BAZA GŁÓWNA"))
 
         if query:
-            # Szukanie w całej bazie danych z limitem
+            # Szukanie pasujących folderów/plików w całej bazie danych
             raw_items = self.db.search_orders(query, limit=100)
         else:
-            # Zwykłe nawigowanie w bieżącym folderze
+            # Pobranie dzieci (zawartości) dla wybranego folderu self.current_path
             raw_items = self.db.get_children(self.current_path)
 
         sorted_items = sorted(
             raw_items, key=lambda x: self.natural_sort_key(x[1])
         )
 
-        # Używamy metody _draw_items z klasy bazowej
+        # Rysowanie listy elementów
         self._draw_items(sorted_items, is_search=bool(query))

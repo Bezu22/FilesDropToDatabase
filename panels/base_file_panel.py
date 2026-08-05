@@ -2,12 +2,11 @@ import re
 from pathlib import Path
 import customtkinter as ctk
 
-# Bezpośredni import ClickHandlera z tego samego katalogu
 from panels.click_handler import ClickHandler
 
 
 class BaseFilePanel(ctk.CTkFrame):
-    """Wspólna klasa bazowa interfejsu dla panelu lewego (maszyny) i prawego (bazy)."""
+    """Wspólna klasa bazowa interfejsu z zabezpieczeniem przed przypadkowym cofaniem (cooldown)."""
 
     def __init__(self, parent, title):
         super().__init__(parent)
@@ -22,6 +21,9 @@ class BaseFilePanel(ctk.CTkFrame):
         self.selected_item_type = None
         self.selected_button = None
 
+        # Zabezpieczenie przed przypadkowym kliknięciem przycisku [..] tuż po otwarciu folderu
+        self._is_navigating = False
+
         # Moduł obsługi kliknięć
         self.click_handler = ClickHandler(self)
 
@@ -33,7 +35,7 @@ class BaseFilePanel(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)
 
-        # 1. Pasek nagłówka (modyfikowany w klasach pochodnych)
+        # 1. Nagłówek
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.header_frame.grid(
             row=0, column=0, padx=5, pady=(5, 0), sticky="ew"
@@ -44,7 +46,7 @@ class BaseFilePanel(ctk.CTkFrame):
         )
         self.label.pack(side="left")
 
-        # 2. Etykieta skróconej ścieżki
+        # 2. Etykieta ścieżki
         self.path_label = ctk.CTkLabel(
             self,
             text="",
@@ -60,20 +62,20 @@ class BaseFilePanel(ctk.CTkFrame):
         )
         self.search_entry.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
 
-        # Status połączenia / operacji
+        # Status
         self.status_label = ctk.CTkLabel(
             self, text="", font=ctk.CTkFont(size=11, weight="bold")
         )
         self.status_label.grid(row=3, column=0, padx=5, pady=(0, 2), sticky="w")
 
-        # 4. Przewijana lista elementów (ScrollableFrame)
+        # 4. Lista elementów
         self.items_list_frame = ctk.CTkScrollableFrame(self)
         self.items_list_frame.grid(
             row=4, column=0, padx=5, pady=5, sticky="nsew"
         )
         self.items_list_frame.grid_columnconfigure(0, weight=1)
 
-        # 5. Dolny pasek z 3 przyciskami akcji
+        # 5. Dolny pasek z przyciskami
         self.actions_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.actions_frame.grid(
             row=5, column=0, padx=5, pady=(0, 5), sticky="ew"
@@ -103,14 +105,12 @@ class BaseFilePanel(ctk.CTkFrame):
 
     @staticmethod
     def natural_sort_key(s):
-        """Pomocnicze sortowanie naturalne po nazwach (np. 1, 2, 10 zamiast 1, 10, 2)."""
         return [
             int(text) if text.isdigit() else text.lower()
             for text in re.split(r"(\d+)", str(s))
         ]
 
     def _get_display_path(self, prefix_name):
-        """Oblicza i zwraca czytelną, skróconą ścieżkę dla nagłówka panelu."""
         try:
             if self.current_path and self.root_path:
                 rel = self.current_path.relative_to(self.root_path)
@@ -120,13 +120,20 @@ class BaseFilePanel(ctk.CTkFrame):
         except Exception:
             return f"{prefix_name} / ."
 
+    def _unlock_navigation(self):
+        """Zdejmuje blokadę czasową po odczekaniu 250 milisekund."""
+        self._is_navigating = False
+
     def _draw_items(self, items, is_search=False):
-        """Rysuje przyciski folderów i plików na ScrollableFrame."""
-        # Czyszczenie starych widgetów
+        """Rysuje przyciski folderów i plików."""
         for widget in self.items_list_frame.winfo_children():
             widget.destroy()
 
         self._clear_selection()
+
+        # Włączamy blokadę na krótki czas, aby uniknąć przypadkowego kliknięcia w nowo powstałe przyciski
+        self._is_navigating = True
+        self.after(250, self._unlock_navigation)
 
         # Przycisk powrotu wyżej [..]
         if (
@@ -154,7 +161,6 @@ class BaseFilePanel(ctk.CTkFrame):
             lbl.pack(anchor="w", padx=10, pady=10)
             return
 
-        # Renderowanie listy
         for item_info in items:
             item_type = item_info[0]
             item_name = item_info[1]
@@ -180,7 +186,6 @@ class BaseFilePanel(ctk.CTkFrame):
                 hover_color="#2A2D2E",
             )
 
-            # Podpięcie obsługi kliknięcia
             btn.bind(
                 "<Button-1>",
                 lambda event, p=full_path, t=item_type, b=btn: self.click_handler.handle_click(
@@ -194,7 +199,6 @@ class BaseFilePanel(ctk.CTkFrame):
             btn.pack(fill="x", padx=2, pady=1)
 
     def _on_single_click(self, path, item_type, button_widget):
-        """Zaznacza element i podświetla go kolorem granatowym."""
         if self.selected_button and self.selected_button.winfo_exists():
             self.selected_button.configure(fg_color="transparent")
 
@@ -202,11 +206,6 @@ class BaseFilePanel(ctk.CTkFrame):
         self.selected_item_type = item_type
         self.selected_button = button_widget
         self.selected_button.configure(fg_color="#1f538d")
-
-        print(
-            f"[{self.title}] Zaznaczono: {self.selected_item_type.upper()} ->"
-            f" {self.selected_item_path}"
-        )
 
     def _on_double_click(self, path, item_type):
         """Otwiera folder po podwójnym kliknięciu."""
@@ -216,28 +215,23 @@ class BaseFilePanel(ctk.CTkFrame):
             self.refresh_view()
 
     def _clear_selection(self):
-        """Resetuje aktualnie zaznaczony element."""
         self.selected_item_path = None
         self.selected_item_type = None
         self.selected_button = None
 
     def _go_up(self):
-        """Cofa się do folderu nadrzędnego."""
+        """Cofa się do folderu nadrzędnego (z blokadą czasową)."""
+        # Jeśli blokada jest aktywna, ignorujemy kliknięcie w przycisk [..]
+        if self._is_navigating:
+            return
+
         if self.current_path and self.current_path != self.root_path:
             self.current_path = self.current_path.parent
             self.search_entry.delete(0, "end")
             self.refresh_view()
 
     def _exec_action(self, action_num):
-        """Prosta obsługa przycisków akcji na dole."""
-        if not self.selected_item_path:
-            print(f"[{self.title}] Akcja {action_num}: Nic nie jest zaznaczone!")
-        else:
-            print(
-                f"[{self.title}] Akcja {action_num} na elemencie:"
-                f" {self.selected_item_type} -> {self.selected_item_path}"
-            )
+        pass
 
     def refresh_view(self):
-        """Metoda szablonowa – nadpisywana w klasach dziedziczących."""
         pass

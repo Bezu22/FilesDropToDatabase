@@ -1,5 +1,3 @@
-import os
-import subprocess
 import threading
 from pathlib import Path
 import customtkinter as ctk
@@ -26,15 +24,9 @@ class DatabasePanel(BaseFilePanel):
         self.refresh_view()
 
     def _setup_db_ui(self):
-        """Dodaje przyciski skanowania i otwierania w Eksploratorze do nagłówka."""
-        self.btn_open_explorer = ctk.CTkButton(
-            self.header_frame,
-            text="📂 Explorer",
-            width=90,
-            command=self.open_in_explorer,
-        )
-        self.btn_open_explorer.pack(side="right", padx=2)
-
+        """Dodaje przycisk skanowania do nagłówka."""
+        # Przycisk "Explorer" został przeniesiony do BottomPanel,
+        # więc w nagłówku pozostaje tylko przycisk "Skanuj".
         self.btn_reindex = ctk.CTkButton(
             self.header_frame,
             text="⚡ Skanuj",
@@ -63,12 +55,6 @@ class DatabasePanel(BaseFilePanel):
         if self._search_timer is not None:
             self.after_cancel(self._search_timer)
         self._search_timer = self.after(300, self.refresh_view)
-
-    def open_in_explorer(self):
-        """Otwiera obecnie przeglądany folder w Eksploratorze Windows."""
-        path_str = str(self.current_path)
-        if os.path.exists(path_str):
-            subprocess.Popen(f'explorer "{path_str}"')
 
     def reindex_database(self):
         """Przeszukuje dysk i buduje na nowo plik bazy danych SQLite w tle."""
@@ -109,7 +95,6 @@ class DatabasePanel(BaseFilePanel):
             raw_items = self.db.get_children(self.current_path)
 
         # Oczyszczanie rekordu z dodatkowych informacji SQL
-        # Zapewnia czystą nazwę bez dopisków w nawiasach
         cleaned_items = []
         for item in raw_items:
             item_type = item[0]

@@ -55,7 +55,8 @@ class NetworkFileManager(ctk.CTk):
         )
         
         # Logowanie startu aplikacji
-        app_logger.info("Uruchomiono aplikację Network File Manager.")
+        #app_logger.info("Uruchomiono aplikację Network File Manager.")
+        self.last_selected_path = None
 
     def search_file_in_database(self, file_name):
         self.right_panel.set_search_query(file_name)

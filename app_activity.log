@@ -6,3 +6,30 @@
 [2026-08-05 12:38:44] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D10-L27-Z4-HW S4-ST.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 16_07_26 11_49'.
 [2026-08-05 12:38:55] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D18 Z2 A2-1835 LEWE.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 23_06_26 07_20'.
 [2026-08-05 12:39:06] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D3 Z1 L12 PRAWE F1-ALU.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 14_07_26 10_04'.
+[2026-08-05 13:15:34] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:17:21] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:18:52] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:18:52] [INFO] SKANOWANIE OK: Maszyna 'MX7_ULTRA', Ścieżka: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools', Znaleziono elementów: 23
+[2026-08-05 13:18:53] [INFO] SKANOWANIE OK: Maszyna 'MX7_ULTRA', Ścieżka: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools', Znaleziono elementów: 23
+[2026-08-05 13:18:54] [INFO] SKANOWANIE OK: Maszyna 'FX7_LINEAR', Ścieżka: '\\192.168.1.55\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools', Znaleziono elementów: 19
+[2026-08-05 13:18:54] [INFO] SKANOWANIE OK: Maszyna 'MX7_ULTRA', Ścieżka: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools', Znaleziono elementów: 23
+[2026-08-05 13:20:14] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:21:15] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:36:05] [INFO] Uruchomiono aplikację Network File Manager.
+[2026-08-05 13:36:43] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D22 Z2 L80 PROSTY PRZESTAWIONY.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 27_07_26 09_40'.
+[2026-08-05 13:36:51] [INFO] ZARCHIWIZOWANO: Plik 'VALEO AW900 Rolka MR1.ST6.02.05_1V2.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 22_05_26 22_25'.
+[2026-08-05 13:36:57] [INFO] ZARCHIWIZOWANO: Plik 'POL-SKONE D13 Z2 R12.6 R0.5.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 09_06_26 08_32'.
+[2026-08-05 13:37:19] [INFO] USUNIĘTO FOLDER Z ZAWARTOŚCIĄ (1 elem.): '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\109'
+[2026-08-05 13:37:22] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\38'
+[2026-08-05 13:37:25] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\55'
+[2026-08-05 13:37:28] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\84 POL-SKONE'
+[2026-08-05 13:37:34] [INFO] ZARCHIWIZOWANO: Plik 'WIERTLO D12x6 PRAWE K120 NACINAKI.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 24_07_26 22_26'.
+[2026-08-05 13:37:38] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\134'
+[2026-08-05 13:38:03] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D12 Z2 KULKA LOLIPOP.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 29_07_26 13_44'.
+[2026-08-05 13:38:06] [INFO] ZARCHIWIZOWANO: Plik 'FREZ D20 Z2 KULKA LOLIPOP.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 29_07_26 11_59'.
+[2026-08-05 13:38:12] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\136'
+[2026-08-05 13:38:19] [INFO] ZARCHIWIZOWANO: Plik 'WIERTLO D12-LEWE-LAMACZ NA CZOLE.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 25_06_26 11_31'.
+[2026-08-05 13:38:21] [INFO] ZARCHIWIZOWANO: Plik 'WIERTLO D12-PRAWE-LAMACZ NA CZOLE.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 24_06_26 12_54'.
+[2026-08-05 13:38:28] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\140'
+[2026-08-05 13:38:43] [INFO] ZARCHIWIZOWANO: Plik 'WIERTLO D14 L120 K90 PRZELOTOWE.tom' z maszyny 'MX7_ULTRA' do katalogu 'WYKONANIE MX7_ULTRA 27_04_26 10_49'.
+[2026-08-05 13:38:48] [INFO] USUNIĘTO PUSTY FOLDER: '\\192.168.1.67\c$\Program Files (x86)\ANCA\RN34.1\toolroom\user\tools\WYKONANE\2026\155'

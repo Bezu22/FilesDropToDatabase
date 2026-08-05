@@ -127,7 +127,7 @@ class BaseFilePanel(ctk.CTkFrame):
         self._is_navigating = False
 
     def _draw_items(self, items, is_search=False):
-        """Rysuje przyciski folderów i plików w liście przewijanej."""
+        """Rysuje przyciski folderów i plików w liście przewijanej oraz przewija widok na samą górę."""
         for widget in self.items_list_frame.winfo_children():
             widget.destroy()
 
@@ -161,47 +161,52 @@ class BaseFilePanel(ctk.CTkFrame):
                 text_color="gray",
             )
             lbl.pack(anchor="w", padx=10, pady=10)
-            return
+        else:
+            for item_info in items:
+                item_type = item_info[0]
+                item_name = item_info[1]
+                path_str = item_info[2]
+                tom_files_str = item_info[3] if len(item_info) > 3 else ""
 
-        for item_info in items:
-            item_type = item_info[0]
-            item_name = item_info[1]
-            path_str = item_info[2]
-            tom_files_str = item_info[3] if len(item_info) > 3 else ""
+                full_path = Path(path_str)
+                icon = "📁" if item_type == "dir" else "📄"
+                color = "gray90" if item_type == "dir" else "#FFD700"
 
-            full_path = Path(path_str)
-            icon = "📁" if item_type == "dir" else "📄"
-            color = "gray90" if item_type == "dir" else "#FFD700"
+                display_text = (
+                    f"{icon} {item_name} ({tom_files_str})"
+                    if (item_type == "dir" and tom_files_str)
+                    else f"{icon} {item_name}"
+                )
 
-            display_text = (
-                f"{icon} {item_name} ({tom_files_str})"
-                if (item_type == "dir" and tom_files_str)
-                else f"{icon} {item_name}"
-            )
+                btn = ctk.CTkButton(
+                    self.items_list_frame,
+                    text=display_text,
+                    anchor="w",
+                    fg_color="transparent",
+                    text_color=color,
+                    hover_color="#2A2D2E",
+                )
 
-            btn = ctk.CTkButton(
-                self.items_list_frame,
-                text=display_text,
-                anchor="w",
-                fg_color="transparent",
-                text_color=color,
-                hover_color="#2A2D2E",
-            )
+                btn.bind(
+                    "<Button-1>",
+                    lambda event, p=full_path, t=item_type, b=btn: self.click_handler.handle_click(
+                        p,
+                        t,
+                        b,
+                        on_single=self._on_single_click,
+                        on_double=self._on_double_click,
+                    ),
+                )
+                btn.pack(fill="x", padx=2, pady=1)
 
-            btn.bind(
-                "<Button-1>",
-                lambda event, p=full_path, t=item_type, b=btn: self.click_handler.handle_click(
-                    p,
-                    t,
-                    b,
-                    on_single=self._on_single_click,
-                    on_double=self._on_double_click,
-                ),
-            )
-            btn.pack(fill="x", padx=2, pady=1)
+        # AUTOMATYCZNE PRZEWIJANIE: Resetuje pozycję suwaka do samej góry (0.0)
+        try:
+            self.items_list_frame._parent_canvas.yview_moveto(0.0)
+        except Exception:
+            pass
 
     def _on_single_click(self, path, item_type, button_widget):
-        """Obsługuje kliknięcie i aktualizuje odpowiednią kolumnę dolnego panelu."""
+        """Obsługuje kliknięcie, zapisuje globalne zaznaczenie i aktualizuje odpowiednią kolumnę dolnego panelu."""
         if self.selected_button and self.selected_button.winfo_exists():
             self.selected_button.configure(fg_color="transparent")
 
@@ -210,12 +215,16 @@ class BaseFilePanel(ctk.CTkFrame):
         self.selected_button = button_widget
         self.selected_button.configure(fg_color="#1f538d")
 
-        # Bezpieczna aktualizacja właściwej kolumny dolnego panelu
+        # Pobieramy korzeń aplikacji
         app = self.winfo_toplevel()
+
+        # Bezpiecznie przypisujemy ścieżkę do głównej aplikacji
+        setattr(app, "last_selected_path", path)
+
+        # Bezpieczna aktualizacja właściwej kolumny dolnego panelu
         bottom_panel = getattr(app, "bottom_panel", None)
 
         if bottom_panel is not None:
-            # Sprawdzamy, czy ten panel to DatabasePanel (prawy), czy MachinePanel (lewy)
             from panels.database_panel import DatabasePanel
 
             if isinstance(self, DatabasePanel):

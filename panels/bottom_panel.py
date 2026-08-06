@@ -8,18 +8,21 @@ import customtkinter as ctk
 class BottomPanel(ctk.CTkFrame):
     """Panel dolny wyświetlający daty modyfikacji elementów zaznaczonych
 
-    w lewym i prawym panelu oraz przycisk otwierania w Eksploratorze.
+    w lewym i prawym panelu oraz przyciski obsługi (Explorer i Zmień nazwę).
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_rename_callback=None):
         super().__init__(parent, height=35)
         self.pack_propagate(False)
 
-        # Siatka: kolumny 0 i 1 rozciągają się po równo, kolumna 2 mieści przycisk Explorer
+        self.on_rename_callback = on_rename_callback
+
+        # Siatka: kolumny 0 i 1 rozciągają się, kolumny 2 i 3 mieszczą przyciski
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(2, weight=0)
+        self.grid_columnconfigure(3, weight=0)
 
         # Lewa kolumna (Komputer Lokalny)
         self.left_label = ctk.CTkLabel(
@@ -39,14 +42,30 @@ class BottomPanel(ctk.CTkFrame):
         )
         self.right_label.grid(row=0, column=1, padx=10, pady=2, sticky="ew")
 
-        # Przycisk otwierania w Eksploratorze Windows
+        # Przycisk: Zmień nazwę
+        self.btn_rename = ctk.CTkButton(
+            self,
+            text="✏️ Zmień nazwę",
+            width=110,
+            fg_color="#D97706",
+            hover_color="#B45309",
+            command=self._on_rename_click,
+        )
+        self.btn_rename.grid(row=0, column=2, padx=5, pady=2, sticky="e")
+
+        # Przycisk: Explorer Windows
         self.btn_explorer = ctk.CTkButton(
             self,
             text="📂 Explorer",
             width=90,
             command=self.open_in_explorer,
         )
-        self.btn_explorer.grid(row=0, column=2, padx=(5, 10), pady=2, sticky="e")
+        self.btn_explorer.grid(row=0, column=3, padx=(5, 10), pady=2, sticky="e")
+
+    def _on_rename_click(self):
+        """Wywołuje przekazaną funkcję zmiany nazwy w głównym oknie."""
+        if self.on_rename_callback:
+            self.on_rename_callback()
 
     def _format_date(self, path):
         """Format pomocniczy do odczytu daty pliku/folderu."""
@@ -91,10 +110,8 @@ class BottomPanel(ctk.CTkFrame):
 
         try:
             if path_obj.is_file():
-                # Przełącznik /select otwiera folder nadrzędny i zaznacza plik
                 subprocess.Popen(f'explorer /select,"{path_obj}"')
             else:
-                # Otwiera folder
                 subprocess.Popen(f'explorer "{path_obj}"')
         except Exception as e:
             print(f"Błąd otwierania w eksploratorze: {e}")

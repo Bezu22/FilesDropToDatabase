@@ -24,6 +24,7 @@ class NetworkFileManager(ctk.CTk):
         self.title("Network File Manager")
         self.geometry("1100x700")
 
+        # Przechowuje ścieżkę OSTATNIO zaznaczonego pliku/folderu (z dowolnego panelu)
         self.last_selected_path = None
 
         # Moduł automatycznej archiwizacji
@@ -52,8 +53,11 @@ class NetworkFileManager(ctk.CTk):
         )
         self.left_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-        # 3. Dolny panel
-        self.bottom_panel = BottomPanel(self)
+        # 3. Dolny panel (z podpięciem funkcji zmiany nazwy)
+        self.bottom_panel = BottomPanel(
+            self,
+            on_rename_callback=self.rename_selected_item,
+        )
         self.bottom_panel.grid(
             row=1, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew"
         )
@@ -61,9 +65,74 @@ class NetworkFileManager(ctk.CTk):
         app_logger.info("Uruchomiono aplikację Network File Manager.")
 
     def search_file_in_database(self, file_name):
+        """Przekazuje nazwę pliku do pola wyszukiwania w prawym panelu."""
         self.right_panel.set_search_query(file_name)
 
+    def rename_selected_item(self):
+        """Zmiana nazwy ostatnio zaznaczonego pliku lub folderu."""
+        if not self.last_selected_path:
+            messagebox.showwarning(
+                "Brak zaznaczenia",
+                "Najpierw zaznacz plik lub folder, którego nazwę chcesz zmienić!",
+            )
+            return
+
+        old_path = Path(self.last_selected_path)
+
+        if not old_path.exists():
+            messagebox.showerror(
+                "Błąd", f"Wskazany element nie istnieje na dysku:\n{old_path}"
+            )
+            return
+
+        # Okienko wprowadzania nowej nazwy
+        dialog = ctk.CTkInputDialog(
+            text=f"Wpisz nową nazwę dla:\n{old_path.name}", title="Zmiana nazwy"
+        )
+        new_name = dialog.get_input()
+
+        # Jeśli anulowano lub pole jest puste
+        if not new_name or new_name.strip() == "":
+            return
+
+        new_name = new_name.strip()
+        new_path = old_path.parent / new_name
+
+        if new_path.exists():
+            messagebox.showerror(
+                "Błąd",
+                f"Element o nazwie '{new_name}' już istnieje w tej lokalizacji!",
+            )
+            return
+
+        try:
+            # Zmiana nazwy na dysku
+            old_path.rename(new_path)
+
+            # Aktualizacja ścieżki ostatniego zaznaczenia
+            self.last_selected_path = str(new_path)
+
+            # Logowanie i odświeżanie interfejsu
+            app_logger.info(
+                f"ZMIENIONO NAZWĘ: '{old_path.name}' -> '{new_name}'"
+            )
+            self.left_panel.refresh_view()
+            self.right_panel.refresh_view()
+
+            messagebox.showinfo(
+                "Sukces", f"Pomyślnie zmieniono nazwę na:\n{new_name}"
+            )
+
+        except Exception as e:
+            app_logger.error(
+                f"BŁĄD ZMIANY NAZWY: '{old_path.name}'. Powód: {e}"
+            )
+            messagebox.showerror(
+                "Błąd zmiany nazwy", f"Nie udało się zmienić nazwy:\n{e}"
+            )
+
     def archive_file_to_database(self, file_path, machine_name):
+        """Uruchamia proces manualnej archiwizacji w osobnym wątku."""
         file_path_obj = Path(file_path)
         self.left_panel.status_label.configure(
             text=f"⏳ Trwa archiwizacja pliku: {file_path_obj.name}...",
@@ -77,6 +146,7 @@ class NetworkFileManager(ctk.CTk):
         ).start()
 
     def _async_archive_process(self, file_path, machine_name):
+        """Asynchroniczne wykonanie manualnego przeniesienia pliku."""
         try:
             mtime = os.path.getmtime(file_path)
             file_date = datetime.fromtimestamp(mtime)
@@ -120,6 +190,7 @@ class NetworkFileManager(ctk.CTk):
             self.after(0, lambda: self._on_archive_error(error_msg))
 
     def _on_archive_success(self, file_path, destination_dir):
+        """Obsługa sukcesu manualnej archiwizacji w wątku głównym GUI."""
         self.right_panel.refresh_view()
         self.left_panel.refresh_view()
         self.left_panel._clear_selection()
@@ -129,6 +200,7 @@ class NetworkFileManager(ctk.CTk):
         )
 
     def _on_archive_error(self, error_message):
+        """Obsługa błędu archiwizacji w wątku głównym GUI."""
         self.left_panel.status_label.configure(
             text="🔴 Błąd archiwizacji!", text_color="#FF5555"
         )
@@ -138,6 +210,7 @@ class NetworkFileManager(ctk.CTk):
         )
 
     def delete_item_from_machine(self, item_path, item_type):
+        """Usuwa wybrany plik lub folder z maszyny po potwierdzeniu."""
         item_path_obj = Path(item_path)
         try:
             if item_type == "file":
@@ -197,6 +270,7 @@ class NetworkFileManager(ctk.CTk):
             )
 
     def _post_delete_cleanup(self, status_msg):
+        """Odświeża widok lewego panelu po usunięciu elementu."""
         self.left_panel.refresh_view()
         self.left_panel._clear_selection()
         self.left_panel.status_label.configure(
@@ -204,6 +278,7 @@ class NetworkFileManager(ctk.CTk):
         )
 
     def clean_empty_folders_in_current_directory(self):
+        """Skanuje aktualny katalog i usuwa wszystkie puste podfoldery."""
         current_path = Path(self.left_panel.current_path)
 
         all_dirs = sorted(

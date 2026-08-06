@@ -5,6 +5,7 @@ import shutil
 import threading
 import tkinter.messagebox as messagebox
 import customtkinter as ctk
+from tkinter import simpledialog
 
 from auto_archiver import AutoArchiver
 from config import MACHINES, MAIN_DB_PATH
@@ -69,11 +70,12 @@ class NetworkFileManager(ctk.CTk):
         self.right_panel.set_search_query(file_name)
 
     def rename_selected_item(self):
-        """Zmiana nazwy ostatnio zaznaczonego pliku lub folderu."""
+        """Zmiana nazwy zaznaczonego pliku na podstawie self.last_selected_path."""
+        # 1. Odczytujemy zapamiętaną ścieżkę zaznaczenia
         if not self.last_selected_path:
             messagebox.showwarning(
                 "Brak zaznaczenia",
-                "Najpierw zaznacz plik lub folder, którego nazwę chcesz zmienić!",
+                "Najpierw zaznacz plik lub folder w panelu!",
             )
             return
 
@@ -85,20 +87,32 @@ class NetworkFileManager(ctk.CTk):
             )
             return
 
-        # Okienko wprowadzania nowej nazwy
-        dialog = ctk.CTkInputDialog(
-            text=f"Wpisz nową nazwę dla:\n{old_path.name}", title="Zmiana nazwy"
-        )
-        new_name = dialog.get_input()
+        # 2. Pobieramy sugerowaną nazwę (dla plików .tom wyciągamy samą nazwę bez rozszerzenia)
+        is_tom_file = old_path.is_file() and old_path.suffix.lower() == ".tom"
+        initial_name = old_path.stem if is_tom_file else old_path.name
 
-        # Jeśli anulowano lub pole jest puste
-        if not new_name or new_name.strip() == "":
+        # 3. Wyświetlamy okno dialogowe z domyślnie wstawioną aktualną nazwą
+        new_input = simpledialog.askstring(
+            title="Zmiana nazwy",
+            prompt=f"Wpisz nową nazwę dla:\n{old_path.name}",
+            initialvalue=initial_name,
+            parent=self,
+        )
+
+        # Jeśli użytkownik wcisnął Anuluj lub nic nie wpisał
+        if not new_input or not new_input.strip():
             return
 
-        new_name = new_name.strip()
+        new_name = new_input.strip()
+
+        # 4. Jeśli edytujemy plik .tom, automatycznie zapewniamy rozszerzenie .tom
+        if is_tom_file or old_path.is_file():
+            if not new_name.lower().endswith(".tom"):
+                new_name += ".tom"
+
         new_path = old_path.parent / new_name
 
-        if new_path.exists():
+        if new_path.exists() and new_path != old_path:
             messagebox.showerror(
                 "Błąd",
                 f"Element o nazwie '{new_name}' już istnieje w tej lokalizacji!",
@@ -106,13 +120,12 @@ class NetworkFileManager(ctk.CTk):
             return
 
         try:
-            # Zmiana nazwy na dysku
+            # 5. Fizyczna zmiana nazwy na dysku
             old_path.rename(new_path)
 
-            # Aktualizacja ścieżki ostatniego zaznaczenia
+            # 6. Aktualizacja zmiennej zaznaczenia i odświeżenie widoków
             self.last_selected_path = str(new_path)
 
-            # Logowanie i odświeżanie interfejsu
             app_logger.info(
                 f"ZMIENIONO NAZWĘ: '{old_path.name}' -> '{new_name}'"
             )
